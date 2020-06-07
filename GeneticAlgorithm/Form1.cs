@@ -15,7 +15,7 @@ namespace GeneticAlgorithm
     {
         public int Iteration { get; set; }
         public double SuitabilityValue { get; set; }
-        public double BestValue { get; set; }
+        public Chromosome BestCromosome { get; set; }
         public Population LastPopulation { get; set; }
         public Population FirstPopulation { get; set; }
 
@@ -43,8 +43,9 @@ namespace GeneticAlgorithm
                     SuitabilityValue = (double)numJenerasyon.Value;
                     RunWithSuitabilityValue();
                 }
-                MessageBox.Show($"En iyi deger olarak {BestValue.ToString("0.##")} bulundu.");
+                MessageBox.Show($"En iyi deger olarak {BestCromosome.FitnessFuntion.ToString("0.##")} bulundu. En iyi deger ve parametreler siralanacak.");
                 FillChart();
+                ShowFunctionParameters();
             }
             catch(Exception exception)
             {
@@ -52,29 +53,43 @@ namespace GeneticAlgorithm
             }
         }
 
-        public double Run() //Genetik algoritmanin akis diyagramina gore adimlari sirayla uygular
+        public Chromosome Run() //Genetik algoritmanin akis diyagramina gore adimlari sirayla uygular
         {
             LastPopulation.CalculateSurvivalRateOfChromosomes(); //Hayatta kalacaklari belirler. Amac fonksiyonu degerleri burda belirlenir.
             LastPopulation.CalculateCumulativeRateOfChromosomes();//Hayatta kalacak ya da olecek kromozomlari belirlemek icin her bir kromozoma hayatta kalma oranina gore kumulatif oran ver
             LastPopulation.CrossoverChildChromosomes();//Elenenlerin yerini doldurmak icin hayatta kalan kromozomlar arasinda caprazlama yapar
             LastPopulation.MutationChildChromosomes();//Mutasyona ugratir
             LastPopulation = LastPopulation.ChildPopulation;//Soyun devamliligini saglamak icin child populasyonu son populasyon olarak degistir.
-            return LastPopulation.ParentPopulation.BestSolution.FitnessFuntion; //Az once islem yapilan populasyondaki kromomlar arasinda amac fonksiyon degeri en iyi olanin degerini parametre olarak gonder. Uygunluk degeri kosulunda kazim amaca ulasildi mi ulasilmadi mi onu kontrol etmek icin lazim.
+            return LastPopulation.ParentPopulation.BestSolution; //Az once islem yapilan populasyondaki kromomlar arasinda amac fonksiyon degeri en iyi olanin degerini parametre olarak gonder. Uygunluk degeri kosulunda kazim amaca ulasildi mi ulasilmadi mi onu kontrol etmek icin lazim.
         }
         void RunWithIteration()//optimzasyon turune gore iterasyon sayısı kadar hesaplar.
         {
-            BestValue = Run();
+            BestCromosome = Run();
             while(--Iteration > 0)
             {
-                var lastValue = Run();
-                BestValue = (rdMaximization.Checked && lastValue > BestValue) || (rdMinimization.Checked && lastValue < BestValue) ? lastValue : BestValue;
+                var lastChromosome = Run();
+                BestCromosome = (rdMaximization.Checked && lastChromosome.FitnessFuntion > BestCromosome.FitnessFuntion) || (rdMinimization.Checked && lastChromosome.FitnessFuntion < BestCromosome.FitnessFuntion) ? lastChromosome : BestCromosome;
             }
         }
         void RunWithSuitabilityValue()//optimzasyon turune gore uygunluk degerine ulasana kadar hesaplamaya devam eder.
         {
-            var condition = rdMaximization.Checked ? (BestValue = Run()) < (double)numJenerasyon.Value : (BestValue = Run()) > (double)numJenerasyon.Value;
+            var condition = rdMaximization.Checked ? (BestCromosome = Run()).FitnessFuntion < (double)numJenerasyon.Value : (BestCromosome = Run()).FitnessFuntion > (double)numJenerasyon.Value;
             while(condition)
                 ;
+        }
+
+        void ShowFunctionParameters()//en iyi fonksiyonun parametrelerini gosterir.
+        {
+            if(BestCromosome == null)
+                return;
+            flwPnlParameters.Controls.Clear();
+
+            for(int i = 0; i < BestCromosome.Genes.Count; i++)
+            {
+                var lblParameter = new Label { Text = $"x{i+1} = {BestCromosome.Genes[i].Value.ToString("0.##")}" };
+                flwPnlParameters.Controls.Add(lblParameter);
+            }
+            lblEnIyiSonuc.Text = BestCromosome.FitnessFuntion.ToString("0.##");
         }
 
         void FillChart() //Son Populasyon uzerinden ilk populasyona kadar giderek butun amac fonksiyonu sonuclarini grafige doker
@@ -86,7 +101,7 @@ namespace GeneticAlgorithm
             do
             {
                 chart1.Series[0].Points.AddXY(++index, iteratorPopulation.BestSolution.FitnessFuntion);
-                chart1.Series[0].Points[index-1].ToolTip = iteratorPopulation.BestSolution.FitnessFuntion.ToString("0.##");
+                chart1.Series[0].Points[index - 1].ToolTip = iteratorPopulation.BestSolution.FitnessFuntion.ToString("0.##");
                 iteratorPopulation = iteratorPopulation.ChildPopulation;
             }
             while(iteratorPopulation.ChildPopulation != null);
